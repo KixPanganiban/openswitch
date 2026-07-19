@@ -7,6 +7,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private let keepAwakeItem: NSMenuItem
     private let darkModeItem: NSMenuItem
+    private let killSubmenu = NSMenu(title: "Kill Process")
 
     override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -47,6 +48,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         sleepItem.target = self
         menu.addItem(sleepItem)
 
+        // Parent item has no action — hovering reveals the submenu of processes.
+        // The submenu is rebuilt each time it opens (see menuNeedsUpdate).
+        let killItem = NSMenuItem(title: "Kill Process", action: nil, keyEquivalent: "")
+        killSubmenu.delegate = self
+        killSubmenu.autoenablesItems = false
+        killItem.submenu = killSubmenu
+        menu.addItem(killItem)
+
         menu.addItem(.separator())
 
         let aboutItem = NSMenuItem(
@@ -84,6 +93,33 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         SleepManager.sleepNow()
     }
 
+    @objc private func killProcess(_ sender: NSMenuItem) {
+        guard let process = sender.representedObject as? NamedProcess else { return }
+
+        // Cmd-click kills immediately; a plain click asks for confirmation first.
+        let commandHeld = NSApp.currentEvent?.modifierFlags.contains(.command) ?? false
+        if commandHeld || confirmKill(process) {
+            ProcessManager.kill(process)
+        }
+    }
+
+    /// Presents a modal confirmation. Returns true if the user chose to kill.
+    private func confirmKill(_ process: NamedProcess) -> Bool {
+        let count = process.pids.count
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Kill “\(process.name)”?"
+        alert.informativeText = count > 1
+            ? "This will terminate \(count) processes named “\(process.name)”."
+            : "This will terminate the process “\(process.name)”."
+        alert.addButton(withTitle: "Kill")
+        alert.addButton(withTitle: "Cancel")
+
+        // Accessory apps aren't active by default; activate so the alert comes to front.
+        NSApp.activate(ignoringOtherApps: true)
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
     @objc private func showAbout() {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "0.1"
@@ -117,7 +153,37 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu === killSubmenu {
+            rebuildKillSubmenu()
+            return
+        }
         // Reflect any changes made outside the app (e.g. appearance toggled in System Settings).
         refreshStates()
+    }
+
+    private func rebuildKillSubmenu() {
+        killSubmenu.removeAllItems()
+
+        let processes = ProcessManager.userProcesses()
+        guard !processes.isEmpty else {
+            let empty = NSMenuItem(title: "No processes", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            killSubmenu.addItem(empty)
+            return
+        }
+
+        for process in processes {
+            let item = NSMenuItem(
+                title: process.name,
+                action: #selector(killProcess(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = process
+            item.toolTip = process.pids.count > 1
+                ? "PIDs: \(process.pids.map(String.init).joined(separator: ", "))"
+                : "PID: \(process.pids.first.map(String.init) ?? "?")"
+            killSubmenu.addItem(item)
+        }
     }
 }

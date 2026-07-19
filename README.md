@@ -7,6 +7,7 @@ A tiny native macOS menu bar app that puts three everyday toggles one click away
 - **Keep Awake** — off by default. When on, your display and system won't sleep (via an IOKit power assertion).
 - **Dark Mode** — reflects the current system appearance; toggles the system-wide Light/Dark setting.
 - **Sleep** — a momentary action that puts the computer to sleep immediately.
+- **Kill Process** — a submenu of your running (current-user) processes, grouped by name. Click one to kill it after a confirmation; **⌘-click** to kill immediately without confirming.
 
 Lives entirely in the menu bar — no Dock icon, no window.
 
@@ -37,6 +38,7 @@ Toggling **Dark Mode** scripts System Events, so the first time you use it macOS
 | Keep Awake | `IOPMAssertionCreateWithName` with `kIOPMAssertionTypePreventUserIdleDisplaySleep` |
 | Dark Mode | AppleScript → System Events `appearance preferences` |
 | Sleep | `pmset sleepnow` |
+| Kill Process | `ps` to list current-user processes, `kill(pid, SIGTERM)` to terminate |
 
 Built with AppKit (`NSStatusItem` + `NSMenu`) and Swift Package Manager. No third-party dependencies.
 
