@@ -96,23 +96,26 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func killProcess(_ sender: NSMenuItem) {
         guard let process = sender.representedObject as? NamedProcess else { return }
 
-        // Cmd-click kills immediately; a plain click asks for confirmation first.
-        let commandHeld = NSApp.currentEvent?.modifierFlags.contains(.command) ?? false
-        if commandHeld || confirmKill(process) {
-            ProcessManager.kill(process)
+        let modifiers = NSApp.currentEvent?.modifierFlags ?? []
+        // Orthogonal modifiers: Option chooses the signal, Command skips the prompt.
+        let signal: KillSignal = modifiers.contains(.option) ? .kill : .term
+        let skipConfirmation = modifiers.contains(.command)
+
+        if skipConfirmation || confirmKill(process, signal: signal) {
+            ProcessManager.kill(process, signal: signal)
         }
     }
 
-    /// Presents a modal confirmation. Returns true if the user chose to kill.
-    private func confirmKill(_ process: NamedProcess) -> Bool {
-        let count = process.pids.count
+    /// Presents a modal confirmation. Returns true if the user chose to proceed.
+    private func confirmKill(_ process: NamedProcess, signal: KillSignal) -> Bool {
+        let force = (signal == .kill)
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Kill “\(process.name)”?"
-        alert.informativeText = count > 1
-            ? "This will terminate \(count) processes named “\(process.name)”."
-            : "This will terminate the process “\(process.name)”."
-        alert.addButton(withTitle: "Kill")
+        alert.messageText = force ? "Force-kill “\(process.name)”?" : "Kill “\(process.name)”?"
+        alert.informativeText = force
+            ? "Sends SIGKILL to “\(process.name)” (PID \(process.pid)). It quits immediately — unsaved work is lost."
+            : "Sends SIGTERM to “\(process.name)” (PID \(process.pid))."
+        alert.addButton(withTitle: force ? "Force Kill" : "Kill")
         alert.addButton(withTitle: "Cancel")
 
         // Accessory apps aren't active by default; activate so the alert comes to front.
@@ -164,9 +167,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private func rebuildKillSubmenu() {
         killSubmenu.removeAllItems()
 
-        let processes = ProcessManager.userProcesses()
+        let processes = ProcessManager.userApplications()
         guard !processes.isEmpty else {
-            let empty = NSMenuItem(title: "No processes", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: "No applications", action: nil, keyEquivalent: "")
             empty.isEnabled = false
             killSubmenu.addItem(empty)
             return
@@ -180,9 +183,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             )
             item.target = self
             item.representedObject = process
-            item.toolTip = process.pids.count > 1
-                ? "PIDs: \(process.pids.map(String.init).joined(separator: ", "))"
-                : "PID: \(process.pids.first.map(String.init) ?? "?")"
+            item.toolTip = "PID \(process.pid)  ·  ⌘ skip confirm  ·  ⌥ force kill (SIGKILL)"
             killSubmenu.addItem(item)
         }
     }

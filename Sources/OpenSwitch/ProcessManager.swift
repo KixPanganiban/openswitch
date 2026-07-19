@@ -1,70 +1,46 @@
+import AppKit
 import Darwin
-import Foundation
 
-/// A running process grouped by display name. One entry per unique name; `pids`
-/// holds every process that shares that name so a kill can target all of them.
+/// A user-facing application and the PID to signal.
 struct NamedProcess {
     let name: String
-    let pids: [pid_t]
+    let pid: pid_t
 }
 
-/// Lists and terminates processes owned by the current user.
+/// Which signal to send when terminating a process.
+enum KillSignal {
+    case term  // SIGTERM — graceful; the app can clean up / prompt to save.
+    case kill  // SIGKILL — immediate and unconditional.
+
+    var rawValue: Int32 { self == .kill ? SIGKILL : SIGTERM }
+    var name: String { self == .kill ? "SIGKILL" : "SIGTERM" }
+}
+
+/// Lists user-facing applications and terminates them.
 enum ProcessManager {
 
-    /// Unique named processes owned by the current user, sorted case-insensitively.
+    /// Regular foreground applications — the ones in the ⌘-Tab switcher — sorted
+    /// case-insensitively by name.
     ///
-    /// Only the current user's processes are listed — those are the ones we can
-    /// actually signal without elevated privileges. Processes are grouped by name,
-    /// and this app itself is excluded so it can't be killed from its own menu.
-    static func userProcesses() -> [NamedProcess] {
-        guard let output = runPS() else { return [] }
-
+    /// Using `NSWorkspace` (rather than enumerating every PID) means helper/child
+    /// processes never appear; only their parent app does. Restricting to `.regular`
+    /// activation policy further drops menu-bar agents, XPC helpers, and system
+    /// daemons, leaving a short list of recognizable parent apps. This app is
+    /// itself excluded.
+    static func userApplications() -> [NamedProcess] {
         let selfPID = getpid()
-        var pidsByName: [String: [pid_t]] = [:]
-
-        for rawLine in output.split(separator: "\n") {
-            let line = rawLine.trimmingCharacters(in: .whitespaces)
-            guard let space = line.firstIndex(of: " "),
-                  let pid = pid_t(line[..<space]) else { continue }
-            if pid == selfPID { continue }
-
-            let commPath = line[line.index(after: space)...].trimmingCharacters(in: .whitespaces)
-            let name = (commPath as NSString).lastPathComponent
-            guard !name.isEmpty else { continue }
-
-            pidsByName[name, default: []].append(pid)
-        }
-
-        return pidsByName
-            .map { NamedProcess(name: $0.key, pids: $0.value) }
+        return NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .filter { $0.processIdentifier > 0 && $0.processIdentifier != selfPID }
+            .compactMap { app -> NamedProcess? in
+                guard let name = app.localizedName ?? app.bundleIdentifier else { return nil }
+                return NamedProcess(name: name, pid: app.processIdentifier)
+            }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    /// Send SIGTERM to every PID grouped under this name.
-    static func kill(_ process: NamedProcess) {
-        for pid in process.pids {
-            Darwin.kill(pid, SIGTERM)
-        }
-    }
-
-    /// Runs `ps` and returns its raw output (one `pid comm` pair per line).
-    private static func runPS() -> String? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/ps")
-        // `pid=,comm=` — the trailing `=` suppresses the column headers.
-        task.arguments = ["-o", "pid=,comm=", "-U", "\(getuid())"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        do {
-            try task.run()
-        } catch {
-            NSLog("OpenSwitch: failed to list processes: \(error)")
-            return nil
-        }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
-        return String(data: data, encoding: .utf8)
+    /// Send the given signal to the process.
+    static func kill(_ process: NamedProcess, signal: KillSignal) {
+        Darwin.kill(process.pid, signal.rawValue)
     }
 }
