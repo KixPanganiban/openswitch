@@ -2,7 +2,7 @@
 
 **Simple switches to do simple things.**
 
-A tiny native macOS menu bar app that puts three everyday toggles one click away.
+A tiny native macOS menu bar app that puts the everyday actions you actually reach for one click away.
 
 - **Keep Awake** — off by default. When on, your display and system won't sleep (via an IOKit power assertion).
 - **Dark Mode** — reflects the current system appearance; toggles the system-wide Light/Dark setting.
@@ -11,6 +11,12 @@ A tiny native macOS menu bar app that puts three everyday toggles one click away
 - **Kill Process** — a submenu of your running foreground apps (the ⌘-Tab list; helper and system processes are excluded). Click one to terminate it after a confirmation. Modifiers: **⌘-click** skips the confirmation, **⌥-click** sends `SIGKILL` (force) instead of `SIGTERM` — combine them (⌘⌥) to force-kill with no prompt.
 
 Lives entirely in the menu bar — no Dock icon, no window.
+
+## Why I built it
+
+I was paying for subscriptions and $20-plus one-off apps that each did *some* of these things — one to keep the Mac awake, another to lock or sleep it, another to force-quit apps. It added up, and none of them did everything.
+
+There's no reason the handful of actions I want most should cost that much or live in five separate menu bar icons. So I put them in one small, free, no-nonsense app. That's how OpenSwitch was born.
 
 ## Requirements
 
