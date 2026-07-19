@@ -51,6 +51,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         // Parent item has no action — hovering reveals the submenu of processes.
         // The submenu is rebuilt each time it opens (see menuNeedsUpdate).
         let killItem = NSMenuItem(title: "Kill Process", action: nil, keyEquivalent: "")
+        killItem.toolTip = """
+        Pick an app to quit it.
+        Click: confirm, then SIGTERM
+        ⌘-click: skip the confirmation
+        ⌥-click: force kill (SIGKILL)
+        ⌘⌥-click: force kill, no confirmation
+        """
         killSubmenu.delegate = self
         killSubmenu.autoenablesItems = false
         killItem.submenu = killSubmenu
@@ -174,6 +181,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             killSubmenu.addItem(empty)
             return
         }
+
+        // Disabled header explaining the modifiers (tooltips on the parent are
+        // preempted when the submenu auto-opens, so this is the reliable hint).
+        let hint = NSMenuItem(title: "⌘ skip confirm   ·   ⌥ force kill", action: nil, keyEquivalent: "")
+        hint.isEnabled = false
+        killSubmenu.addItem(hint)
+        killSubmenu.addItem(.separator())
 
         for process in processes {
             let item = NSMenuItem(
