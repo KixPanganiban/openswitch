@@ -44,6 +44,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
+        let lockItem = NSMenuItem(title: "Lock", action: #selector(lockScreen), keyEquivalent: "")
+        lockItem.target = self
+        menu.addItem(lockItem)
+
         let sleepItem = NSMenuItem(title: "Sleep", action: #selector(sleepNow), keyEquivalent: "")
         sleepItem.target = self
         menu.addItem(sleepItem)
@@ -94,6 +98,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func toggleDarkMode() {
         AppearanceManager.toggle()
         // Appearance change is asynchronous; menuNeedsUpdate will re-sync on next open.
+    }
+
+    @objc private func lockScreen() {
+        LockManager.lock()
     }
 
     @objc private func sleepNow() {
