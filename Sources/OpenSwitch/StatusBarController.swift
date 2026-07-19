@@ -198,8 +198,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         killSubmenu.addItem(.separator())
 
         for process in processes {
+            let stats = String(format: "%.0f%% · %.0f MB", process.cpuPercent, process.memoryMB)
             let item = NSMenuItem(
-                title: process.name,
+                title: "\(process.name)  —  \(stats)",
                 action: #selector(killProcess(_:)),
                 keyEquivalent: ""
             )

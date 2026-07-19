@@ -8,7 +8,7 @@ A tiny native macOS menu bar app that puts the everyday actions you actually rea
 - **Dark Mode** — reflects the current system appearance; toggles the system-wide Light/Dark setting.
 - **Lock** — a momentary action that locks the screen immediately (shows the password prompt).
 - **Sleep** — a momentary action that puts the computer to sleep immediately.
-- **Kill Process** — a submenu of your running foreground apps (the ⌘-Tab list; helper and system processes are excluded). Click one to terminate it after a confirmation. Modifiers: **⌘-click** skips the confirmation, **⌥-click** sends `SIGKILL` (force) instead of `SIGTERM` — combine them (⌘⌥) to force-kill with no prompt.
+- **Kill Process** — a submenu of your running foreground apps (the ⌘-Tab list; helper and system processes are excluded), each showing approximate CPU% and memory. Click one to terminate it after a confirmation. Modifiers: **⌘-click** skips the confirmation, **⌥-click** sends `SIGKILL` (force) instead of `SIGTERM` — combine them (⌘⌥) to force-kill with no prompt.
 
 Lives entirely in the menu bar — no Dock icon, no window.
 
@@ -46,7 +46,7 @@ Toggling **Dark Mode** scripts System Events, so the first time you use it macOS
 | Dark Mode | AppleScript → System Events `appearance preferences` |
 | Lock | `SACLockScreenImmediate` from the private `login` framework (via `dlopen`) |
 | Sleep | `pmset sleepnow` |
-| Kill Process | `NSWorkspace.runningApplications` (regular apps only) to list, `kill(pid, SIGTERM/SIGKILL)` to terminate |
+| Kill Process | `NSWorkspace.runningApplications` (regular apps only) to list, `ps -o %cpu=,rss=` for approximate usage, `kill(pid, SIGTERM/SIGKILL)` to terminate |
 
 Built with AppKit (`NSStatusItem` + `NSMenu`) and Swift Package Manager. No third-party dependencies.
 
