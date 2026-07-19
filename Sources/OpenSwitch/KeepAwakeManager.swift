@@ -1,14 +1,25 @@
+import Foundation
 import IOKit.pwr_mgt
 
 /// Prevents the display (and therefore the system) from going to sleep while active,
-/// using an IOKit power assertion. Default state is inactive — no assertion is held.
+/// using an IOKit power assertion. The active state persists across app restarts.
 final class KeepAwakeManager {
+    private static let defaultsKey = "KeepAwakeEnabled"
+
     private var assertionID: IOPMAssertionID = 0
     private(set) var isActive = false
 
-    /// Turn keep-awake on or off. Idempotent.
+    /// Restores the persisted state, re-creating the assertion if it was left on.
+    init() {
+        if UserDefaults.standard.bool(forKey: Self.defaultsKey) {
+            start()
+        }
+    }
+
+    /// Turn keep-awake on or off. Idempotent. Persists the new state.
     func setActive(_ active: Bool) {
         active ? start() : stop()
+        UserDefaults.standard.set(isActive, forKey: Self.defaultsKey)
     }
 
     /// Convenience: flip the current state and return the new value.

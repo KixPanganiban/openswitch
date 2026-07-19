@@ -4,7 +4,7 @@
 
 A tiny native macOS menu bar app that puts the everyday actions you actually reach for one click away.
 
-- **Keep Awake** — off by default. When on, your display and system won't sleep (via an IOKit power assertion).
+- **Keep Awake** — off on first run. When on, your display and system won't sleep (via an IOKit power assertion). The state persists across app restarts.
 - **Dark Mode** — reflects the current system appearance; toggles the system-wide Light/Dark setting.
 - **Lock** — a momentary action that locks the screen immediately (shows the password prompt).
 - **Sleep** — a momentary action that puts the computer to sleep immediately.
