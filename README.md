@@ -2,6 +2,10 @@
 
 **Simple switches to do simple things.**
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="OpenSwitch menu bar dropdown" width="440">
+</p>
+
 A tiny native macOS menu bar app that puts the everyday actions you actually reach for one click away.
 
 - **Keep Awake** — off on first run. When on, your display and system won't sleep (via an IOKit power assertion). The state persists across app restarts.
