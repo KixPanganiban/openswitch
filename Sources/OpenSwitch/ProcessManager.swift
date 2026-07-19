@@ -5,6 +5,8 @@ import Darwin
 struct NamedProcess {
     let name: String
     let pid: pid_t
+    /// The app's icon, for display in the menu.
+    let icon: NSImage?
     /// Recent CPU usage as a percentage (may exceed 100 across multiple cores).
     let cpuPercent: Double
     /// Resident memory in megabytes.
@@ -36,9 +38,9 @@ enum ProcessManager {
         let apps = NSWorkspace.shared.runningApplications
             .filter { $0.activationPolicy == .regular }
             .filter { $0.processIdentifier > 0 && $0.processIdentifier != selfPID }
-            .compactMap { app -> (name: String, pid: pid_t)? in
+            .compactMap { app -> (name: String, pid: pid_t, icon: NSImage?)? in
                 guard let name = app.localizedName ?? app.bundleIdentifier else { return nil }
-                return (name, app.processIdentifier)
+                return (name, app.processIdentifier, app.icon)
             }
 
         let stats = resourceStats(for: apps.map(\.pid))
@@ -49,6 +51,7 @@ enum ProcessManager {
                 return NamedProcess(
                     name: app.name,
                     pid: app.pid,
+                    icon: app.icon,
                     cpuPercent: stat?.cpu ?? 0,
                     memoryMB: stat?.memoryMB ?? 0
                 )

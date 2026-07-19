@@ -205,6 +205,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                 keyEquivalent: ""
             )
             item.attributedTitle = processTitle(name: process.name, stats: stats)
+            if let icon = process.icon {
+                let sized = icon.copy() as! NSImage
+                sized.size = NSSize(width: 16, height: 16)
+                item.image = sized
+            }
             item.target = self
             item.representedObject = process
             item.toolTip = "PID \(process.pid)  ·  ⌘ skip confirm  ·  ⌥ force kill (SIGKILL)"
