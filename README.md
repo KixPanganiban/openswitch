@@ -40,6 +40,10 @@ Toggling **Dark Mode** scripts System Events, so the first time you use it macOS
 
 Built with AppKit (`NSStatusItem` + `NSMenu`) and Swift Package Manager. No third-party dependencies.
 
-## Author
+## Contributing
 
-Kix Panganiban — [github.com/kixpanganiban](https://github.com/kixpanganiban)
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
