@@ -204,10 +204,25 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                 action: #selector(killProcess(_:)),
                 keyEquivalent: ""
             )
+            item.attributedTitle = processTitle(name: process.name, stats: stats)
             item.target = self
             item.representedObject = process
             item.toolTip = "PID \(process.pid)  ·  ⌘ skip confirm  ·  ⌥ force kill (SIGKILL)"
             killSubmenu.addItem(item)
         }
+    }
+
+    /// App name in normal color followed by a muted, resource-usage suffix.
+    private func processTitle(name: String, stats: String) -> NSAttributedString {
+        let font = NSFont.menuFont(ofSize: 0)
+        let title = NSMutableAttributedString(
+            string: name,
+            attributes: [.font: font, .foregroundColor: NSColor.labelColor]
+        )
+        title.append(NSAttributedString(
+            string: "   \(stats)",
+            attributes: [.font: font, .foregroundColor: NSColor.secondaryLabelColor]
+        ))
+        return title
     }
 }

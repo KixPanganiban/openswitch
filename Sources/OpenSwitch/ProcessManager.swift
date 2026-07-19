@@ -61,15 +61,49 @@ enum ProcessManager {
         Darwin.kill(process.pid, signal.rawValue)
     }
 
-    /// Approximate CPU% and resident memory for the given PIDs, via a single `ps` call.
-    /// Covers only the main process of each app, not its helper children.
-    private static func resourceStats(for pids: [pid_t]) -> [pid_t: (cpu: Double, memoryMB: Double)] {
-        guard !pids.isEmpty else { return [:] }
+    /// Approximate aggregated CPU% and resident memory for each app PID.
+    ///
+    /// Every process in the system is attributed to the app "responsible" for it
+    /// (its main app for helper/XPC children, matching how Activity Monitor groups
+    /// them), then CPU and memory are summed per app. If the responsibility lookup
+    /// is unavailable, this degrades to each app's main process only.
+    private static func resourceStats(for appPIDs: [pid_t]) -> [pid_t: (cpu: Double, memoryMB: Double)] {
+        guard !appPIDs.isEmpty, let output = allProcessStats() else { return [:] }
 
+        let appSet = Set(appPIDs)
+        var grouped: [pid_t: (cpu: Double, rssKB: Double)] = [:]  // keyed by responsible app PID
+        var own: [pid_t: (cpu: Double, rssKB: Double)] = [:]      // per-process fallback
+
+        for line in output.split(separator: "\n") {
+            let fields = line.split(separator: " ", omittingEmptySubsequences: true)
+            guard fields.count == 3,
+                  let pid = pid_t(fields[0]),
+                  let cpu = Double(fields[1]),
+                  let rssKB = Double(fields[2]) else { continue }
+
+            own[pid] = (cpu, rssKB)
+            let owner = responsiblePID(for: pid)
+            if appSet.contains(owner) {
+                var total = grouped[owner, default: (0, 0)]
+                total.cpu += cpu
+                total.rssKB += rssKB
+                grouped[owner] = total
+            }
+        }
+
+        var result: [pid_t: (cpu: Double, memoryMB: Double)] = [:]
+        for pid in appPIDs {
+            let agg = grouped[pid] ?? own[pid] ?? (cpu: 0, rssKB: 0)
+            result[pid] = (agg.cpu, agg.rssKB / 1024)
+        }
+        return result
+    }
+
+    /// One snapshot of every process: `pid %cpu rss(KB)` per line.
+    private static func allProcessStats() -> String? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/ps")
-        // pid, %cpu, and rss (resident set size in KB); trailing `=` suppresses headers.
-        task.arguments = ["-o", "pid=,%cpu=,rss=", "-p", pids.map(String.init).joined(separator: ",")]
+        task.arguments = ["-axo", "pid=,%cpu=,rss="]
 
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -77,22 +111,29 @@ enum ProcessManager {
             try task.run()
         } catch {
             NSLog("OpenSwitch: failed to read process stats: \(error)")
-            return [:]
+            return nil
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         task.waitUntilExit()
-
-        guard let output = String(data: data, encoding: .utf8) else { return [:] }
-
-        var result: [pid_t: (cpu: Double, memoryMB: Double)] = [:]
-        for line in output.split(separator: "\n") {
-            let fields = line.split(separator: " ", omittingEmptySubsequences: true)
-            guard fields.count == 3,
-                  let pid = pid_t(fields[0]),
-                  let cpu = Double(fields[1]),
-                  let rssKB = Double(fields[2]) else { continue }
-            result[pid] = (cpu, rssKB / 1024)
-        }
-        return result
+        return String(data: data, encoding: .utf8)
     }
+
+    /// The PID that macOS considers "responsible" for the given process — the app
+    /// that spawned an XPC/helper child. Falls back to the PID itself if the
+    /// private lookup is unavailable.
+    private static func responsiblePID(for pid: pid_t) -> pid_t {
+        responsibleForPID?(pid) ?? pid
+    }
+
+    /// `responsibility_get_pid_responsible_for_pid`, resolved once from the loaded
+    /// system libraries. Private API — nil (and graceful degradation) if it's gone.
+    private static let responsibleForPID: ((pid_t) -> pid_t)? = {
+        let rtldDefault = UnsafeMutableRawPointer(bitPattern: -2)
+        guard let symbol = dlsym(rtldDefault, "responsibility_get_pid_responsible_for_pid") else {
+            return nil
+        }
+        typealias Fn = @convention(c) (pid_t) -> pid_t
+        let fn = unsafeBitCast(symbol, to: Fn.self)
+        return { fn($0) }
+    }()
 }
