@@ -13,6 +13,7 @@ A tiny native macOS menu bar app that puts the everyday actions you actually rea
 - **Lock** — a momentary action that locks the screen immediately (shows the password prompt).
 - **Sleep** — a momentary action that puts the computer to sleep immediately.
 - **Kill Process** — a submenu of your running foreground apps (the ⌘-Tab list; helper and system processes are excluded), each showing approximate CPU% and memory aggregated across the whole app (main process plus its helper/XPC children, like Activity Monitor). Click one to terminate it after a confirmation. Modifiers: **⌘-click** skips the confirmation, **⌥-click** sends `SIGKILL` (force) instead of `SIGTERM` — combine them (⌘⌥) to force-kill with no prompt.
+- **Clipboard** — a submenu of your recent copies (text and images, e.g. screenshots or images copied from a browser). Click one to copy it again, then paste with ⌘V. History is kept in memory only (never written to disk) and capped at the last 20 items; passwords and other copies marked sensitive are skipped. Includes a **Clear History** action.
 
 Lives entirely in the menu bar — no Dock icon, no window.
 
@@ -51,6 +52,7 @@ Toggling **Dark Mode** scripts System Events, so the first time you use it macOS
 | Lock | `SACLockScreenImmediate` from the private `login` framework (via `dlopen`) |
 | Sleep | `pmset sleepnow` |
 | Kill Process | `NSWorkspace.runningApplications` (regular apps only) to list; `ps -axo %cpu=,rss=` summed per app via `responsibility_get_pid_responsible_for_pid` grouping; `kill(pid, SIGTERM/SIGKILL)` to terminate |
+| Clipboard | Polls `NSPasteboard.general.changeCount`; captures text and images (`NSImage(pasteboard:)`), skipping `org.nspasteboard.ConcealedType`/`TransientType` |
 
 Built with AppKit (`NSStatusItem` + `NSMenu`) and Swift Package Manager. No third-party dependencies.
 

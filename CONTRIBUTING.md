@@ -24,6 +24,7 @@ Sources/OpenSwitch/
   LockManager.swift         Locks the screen (private login framework)
   SleepManager.swift        Triggers system sleep
   ProcessManager.swift      Lists foreground apps and kills them (SIGTERM/SIGKILL)
+  ClipboardManager.swift    Polls the pasteboard for recent text/image history
 Resources/Info.plist       Bundle metadata, LSUIElement, permissions
 build.sh                    Builds and assembles OpenSwitch.app
 ```

@@ -1,13 +1,15 @@
 import AppKit
 
-/// Owns the menu bar item and its menu, and wires the three controls.
+/// Owns the menu bar item and its menu, and wires its controls.
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let keepAwake = KeepAwakeManager()
+    private let clipboard = ClipboardManager()
 
     private let keepAwakeItem: NSMenuItem
     private let darkModeItem: NSMenuItem
     private let killSubmenu = NSMenu(title: "Kill Process")
+    private let clipboardSubmenu = NSMenu(title: "Clipboard")
 
     override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -17,6 +19,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         configureButton()
         configureMenu()
+        clipboard.start()
     }
 
     private func configureButton() {
@@ -66,6 +69,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         killSubmenu.autoenablesItems = false
         killItem.submenu = killSubmenu
         menu.addItem(killItem)
+
+        let clipboardItem = NSMenuItem(title: "📋 Clipboard", action: nil, keyEquivalent: "")
+        clipboardItem.toolTip = "Recent copies. Click one to copy it again, then paste with ⌘V.\nPasswords and other sensitive copies are skipped."
+        clipboardSubmenu.delegate = self
+        clipboardSubmenu.autoenablesItems = false
+        clipboardItem.submenu = clipboardSubmenu
+        menu.addItem(clipboardItem)
 
         menu.addItem(.separator())
 
@@ -161,6 +171,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         ])
     }
 
+    @objc private func copyClipboardEntry(_ sender: NSMenuItem) {
+        guard let entry = sender.representedObject as? ClipboardEntry else { return }
+        clipboard.copyToPasteboard(entry)
+    }
+
+    @objc private func clearClipboard() {
+        clipboard.clear()
+    }
+
     // MARK: - State sync
 
     private func refreshStates() {
@@ -175,8 +194,74 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             rebuildKillSubmenu()
             return
         }
+        if menu === clipboardSubmenu {
+            rebuildClipboardSubmenu()
+            return
+        }
         // Reflect any changes made outside the app (e.g. appearance toggled in System Settings).
         refreshStates()
+    }
+
+    private func rebuildClipboardSubmenu() {
+        clipboardSubmenu.removeAllItems()
+
+        let entries = clipboard.history
+        guard !entries.isEmpty else {
+            let empty = NSMenuItem(title: "No items", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            clipboardSubmenu.addItem(empty)
+            return
+        }
+
+        for entry in entries {
+            let item = NSMenuItem(title: "", action: #selector(copyClipboardEntry(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = entry
+
+            switch entry.content {
+            case .text(let string):
+                item.title = textPreview(string)
+                item.image = symbolImage("doc.on.clipboard")
+            case .image(let image):
+                item.title = imageLabel(image)
+                item.image = thumbnail(image)
+            }
+            clipboardSubmenu.addItem(item)
+        }
+
+        clipboardSubmenu.addItem(.separator())
+        let clearItem = NSMenuItem(title: "Clear History", action: #selector(clearClipboard), keyEquivalent: "")
+        clearItem.target = self
+        clipboardSubmenu.addItem(clearItem)
+    }
+
+    /// A single-line, length-limited preview of copied text.
+    private func textPreview(_ text: String) -> String {
+        let collapsed = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+        let limit = 50
+        return collapsed.count > limit ? String(collapsed.prefix(limit)) + "…" : collapsed
+    }
+
+    private func imageLabel(_ image: NSImage) -> String {
+        if let rep = image.representations.first, rep.pixelsWide > 0 {
+            return "Image — \(rep.pixelsWide) × \(rep.pixelsHigh)"
+        }
+        return "Image"
+    }
+
+    private func thumbnail(_ image: NSImage) -> NSImage {
+        let copy = image.copy() as! NSImage
+        copy.size = NSSize(width: 16, height: 16)
+        return copy
+    }
+
+    private func symbolImage(_ name: String) -> NSImage? {
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
+        image?.isTemplate = true
+        return image
     }
 
     private func rebuildKillSubmenu() {
