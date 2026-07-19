@@ -1,0 +1,5 @@
+.build/
+.swiftpm/
+OpenSwitch.app/
+*.xcodeproj
+.DS_Store
