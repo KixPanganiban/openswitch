@@ -11,8 +11,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        keepAwakeItem = NSMenuItem(title: "Keep Awake", action: nil, keyEquivalent: "")
-        darkModeItem = NSMenuItem(title: "Dark Mode", action: nil, keyEquivalent: "")
+        keepAwakeItem = NSMenuItem(title: "☕️ Keep Awake", action: nil, keyEquivalent: "")
+        darkModeItem = NSMenuItem(title: "🌙 Dark Mode", action: nil, keyEquivalent: "")
         super.init()
 
         configureButton()
@@ -44,17 +44,17 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        let lockItem = NSMenuItem(title: "Lock", action: #selector(lockScreen), keyEquivalent: "")
+        let lockItem = NSMenuItem(title: "🔒 Lock", action: #selector(lockScreen), keyEquivalent: "")
         lockItem.target = self
         menu.addItem(lockItem)
 
-        let sleepItem = NSMenuItem(title: "Sleep", action: #selector(sleepNow), keyEquivalent: "")
+        let sleepItem = NSMenuItem(title: "🛏️ Sleep", action: #selector(sleepNow), keyEquivalent: "")
         sleepItem.target = self
         menu.addItem(sleepItem)
 
         // Parent item has no action — hovering reveals the submenu of processes.
         // The submenu is rebuilt each time it opens (see menuNeedsUpdate).
-        let killItem = NSMenuItem(title: "Kill Process", action: nil, keyEquivalent: "")
+        let killItem = NSMenuItem(title: "☠️ Kill Process", action: nil, keyEquivalent: "")
         killItem.toolTip = """
         Pick an app to quit it.
         Click: confirm, then SIGTERM
