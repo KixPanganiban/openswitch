@@ -21,6 +21,7 @@ Sources/OpenSwitch/
   StatusBarController.swift Menu bar item, menu, and wiring
   KeepAwakeManager.swift    IOKit power assertion
   AppearanceManager.swift   Reads / toggles system appearance
+  AudioManager.swift        Lists / switches default audio devices (Core Audio)
   LockManager.swift         Locks the screen (private login framework)
   SleepManager.swift        Triggers system sleep
   ProcessManager.swift      Lists foreground apps and kills them (SIGTERM/SIGKILL)

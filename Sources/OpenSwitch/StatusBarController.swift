@@ -1,4 +1,11 @@
 import AppKit
+import CoreAudio
+
+/// Menu-item payload identifying an audio device and the role to assign it to.
+private struct AudioTarget {
+    let role: AudioManager.Role
+    let id: AudioDeviceID
+}
 
 /// Owns the menu bar item and its menu, and wires its controls.
 final class StatusBarController: NSObject, NSMenuDelegate {
@@ -10,6 +17,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let darkModeItem: NSMenuItem
     private let killSubmenu = NSMenu(title: "Kill Process")
     private let clipboardSubmenu = NSMenu(title: "Clipboard")
+    private let audioSubmenu = NSMenu(title: "Audio")
 
     override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -44,6 +52,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         darkModeItem.target = self
         darkModeItem.action = #selector(toggleDarkMode)
         menu.addItem(darkModeItem)
+
+        let audioItem = NSMenuItem(title: "🔊 Audio", action: nil, keyEquivalent: "")
+        audioItem.toolTip = "Switch the default output, input, or alert sound device."
+        audioSubmenu.delegate = self
+        audioSubmenu.autoenablesItems = false
+        audioItem.submenu = audioSubmenu
+        menu.addItem(audioItem)
 
         menu.addItem(.separator())
 
@@ -180,6 +195,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         clipboard.clear()
     }
 
+    @objc private func selectAudioDevice(_ sender: NSMenuItem) {
+        guard let target = sender.representedObject as? AudioTarget else { return }
+        AudioManager.setDefault(target.id, for: target.role)
+    }
+
     // MARK: - State sync
 
     private func refreshStates() {
@@ -198,8 +218,50 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             rebuildClipboardSubmenu()
             return
         }
+        if menu === audioSubmenu {
+            rebuildAudioSubmenu()
+            return
+        }
         // Reflect any changes made outside the app (e.g. appearance toggled in System Settings).
         refreshStates()
+    }
+
+    private func rebuildAudioSubmenu() {
+        audioSubmenu.removeAllItems()
+
+        let categories: [(title: String, role: AudioManager.Role)] = [
+            ("🔈 Output", .output),
+            ("🎙️ Input", .input),
+            ("🔔 Alerts", .systemOutput),
+        ]
+
+        for category in categories {
+            let item = NSMenuItem(title: category.title, action: nil, keyEquivalent: "")
+            item.submenu = deviceMenu(for: category.role)
+            audioSubmenu.addItem(item)
+        }
+    }
+
+    private func deviceMenu(for role: AudioManager.Role) -> NSMenu {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+
+        let devices = AudioManager.devices(for: role)
+        guard !devices.isEmpty else {
+            let empty = NSMenuItem(title: "No devices", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            submenu.addItem(empty)
+            return submenu
+        }
+
+        for device in devices {
+            let item = NSMenuItem(title: device.name, action: #selector(selectAudioDevice(_:)), keyEquivalent: "")
+            item.target = self
+            item.state = device.isDefault ? .on : .off
+            item.representedObject = AudioTarget(role: role, id: device.id)
+            submenu.addItem(item)
+        }
+        return submenu
     }
 
     private func rebuildClipboardSubmenu() {
