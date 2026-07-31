@@ -26,13 +26,16 @@ Sources/OpenSwitch/
   SleepManager.swift        Triggers system sleep
   ProcessManager.swift      Lists foreground apps and kills them (SIGTERM/SIGKILL)
   ClipboardManager.swift    Polls the pasteboard for recent text/image history
+  PluginManager.swift       Discovers user plugins and runs their scripts
 Resources/Info.plist       Bundle metadata, LSUIElement, permissions
+docs/PLUGINS.md             Plugin system documentation
+plugins/claude-usage/       Opt-in sample plugin (not enabled by default)
 build.sh                    Builds and assembles OpenSwitch.app
 ```
 
 ## Making changes
 
-- Keep the app small and dependency-free — AppKit and system frameworks only.
+- Keep the core app small and dependency-free — AppKit and system frameworks only. Sample plugins under `plugins/` may rely on local commands (e.g. `jq` for the Claude usage sample).
 - Match the existing style: clear names, small focused types, a short doc comment on each type.
 - Run `swift build` to confirm it compiles before opening a PR.
 - Update the [README](README.md) if you add or change user-facing behavior.

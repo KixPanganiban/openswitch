@@ -12,6 +12,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let keepAwake = KeepAwakeManager()
     private let clipboard = ClipboardManager()
+    private let plugins = PluginManager()
+    private var pluginSubmenus: [ObjectIdentifier: LoadedPlugin] = [:]
 
     private let keepAwakeItem: NSMenuItem
     private let darkModeItem: NSMenuItem
@@ -93,6 +95,42 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(clipboardItem)
 
         menu.addItem(.separator())
+
+        if !plugins.entries.isEmpty {
+            for entry in plugins.entries {
+                switch entry {
+                case .valid(let plugin):
+                    if let children = plugin.children, !children.isEmpty {
+                        let submenu = NSMenu()
+                        submenu.delegate = self
+                        submenu.autoenablesItems = false
+                        pluginSubmenus[ObjectIdentifier(submenu)] = plugin
+
+                        let item = NSMenuItem(
+                            title: plugins.displayTitle(for: plugin),
+                            action: nil,
+                            keyEquivalent: ""
+                        )
+                        item.submenu = submenu
+                        menu.addItem(item)
+                    } else {
+                        let item = NSMenuItem(
+                            title: plugins.displayTitle(for: plugin),
+                            action: #selector(pluginLeafClick(_:)),
+                            keyEquivalent: ""
+                        )
+                        item.target = self
+                        item.representedObject = plugin
+                        menu.addItem(item)
+                    }
+                case .invalid(let dirName, let reason):
+                    let item = NSMenuItem(title: "\(dirName): \(reason)", action: nil, keyEquivalent: "")
+                    item.isEnabled = false
+                    menu.addItem(item)
+                }
+            }
+            menu.addItem(.separator())
+        }
 
         let aboutItem = NSMenuItem(
             title: "About OpenSwitch",
@@ -200,6 +238,38 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         AudioManager.setDefault(target.id, for: target.role)
     }
 
+    @objc private func pluginLeafClick(_ sender: NSMenuItem) {
+        guard let plugin = sender.representedObject as? LoadedPlugin else { return }
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            if let message = plugins.runOnClick(plugin: plugin, childIndex: nil) {
+                DispatchQueue.main.async { [self] in
+                    showPluginError(message)
+                }
+            }
+        }
+    }
+
+    @objc private func pluginChildClick(_ sender: NSMenuItem) {
+        guard let target = sender.representedObject as? PluginClickTarget else { return }
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            if let message = plugins.runOnClick(plugin: target.plugin, childIndex: target.childIndex) {
+                DispatchQueue.main.async { [self] in
+                    showPluginError(message)
+                }
+            }
+        }
+    }
+
+    private func showPluginError(_ message: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Plugin action failed"
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
+    }
+
     // MARK: - State sync
 
     private func refreshStates() {
@@ -222,8 +292,35 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             rebuildAudioSubmenu()
             return
         }
+        if let plugin = pluginSubmenus[ObjectIdentifier(menu)] {
+            rebuildPluginSubmenu(menu, plugin: plugin)
+            return
+        }
         // Reflect any changes made outside the app (e.g. appearance toggled in System Settings).
         refreshStates()
+    }
+
+    private func rebuildPluginSubmenu(_ submenu: NSMenu, plugin: LoadedPlugin) {
+        submenu.removeAllItems()
+        guard let children = plugin.children else { return }
+
+        for (index, child) in children.enumerated() {
+            let initialTitle = plugins.cachedTitle(plugin: plugin, childIndex: index) ?? "…"
+            let item = NSMenuItem(title: initialTitle, action: nil, keyEquivalent: "")
+            if child.onClickURL != nil {
+                item.action = #selector(pluginChildClick(_:))
+                item.target = self
+                item.representedObject = PluginClickTarget(plugin: plugin, childIndex: index)
+            } else {
+                item.isEnabled = false
+            }
+            submenu.addItem(item)
+        }
+
+        plugins.refreshChildren(plugin: plugin) { index, title in
+            guard index >= 0, index < submenu.items.count else { return }
+            submenu.items[index].title = title
+        }
     }
 
     private func rebuildAudioSubmenu() {
