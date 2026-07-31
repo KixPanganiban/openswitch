@@ -85,4 +85,5 @@ A bad `plugin.json`, missing `title`, missing required scripts, non-executable f
 
 Samples under `plugins/` in the repo are **not** enabled by default. Copy or symlink them into `~/.config/openswitch/plugins/` yourself.
 
-See [Claude Usage](../plugins/claude-usage/README.md) for the shipped sample.
+- [Claude Usage](../plugins/claude-usage/README.md)
+- [Codex Usage](../plugins/codex-usage/README.md)

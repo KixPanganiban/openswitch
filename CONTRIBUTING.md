@@ -29,7 +29,8 @@ Sources/OpenSwitch/
   PluginManager.swift       Discovers user plugins and runs their scripts
 Resources/Info.plist       Bundle metadata, LSUIElement, permissions
 docs/PLUGINS.md             Plugin system documentation
-plugins/claude-usage/       Opt-in sample plugin (not enabled by default)
+plugins/claude-usage/       Opt-in Claude usage sample (not enabled by default)
+plugins/codex-usage/        Opt-in Codex usage sample (not enabled by default)
 build.sh                    Builds and assembles OpenSwitch.app
 ```
 

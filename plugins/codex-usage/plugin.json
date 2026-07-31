@@ -1,0 +1,8 @@
+{
+  "title": "Codex Usage",
+  "icon": "📦",
+  "children": [
+    { "onRender": "./5h.sh" },
+    { "onRender": "./weekly.sh" }
+  ]
+}

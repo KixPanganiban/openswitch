@@ -65,7 +65,10 @@ Optional script plugins can add top-level menu items. Nothing is enabled until y
 
 Full contract (manifest, `onRender` refresh, errors): **[docs/PLUGINS.md](docs/PLUGINS.md)**.
 
-Shipped sample (Claude Code 5h / weekly usage) — install steps and uninstall: **[plugins/claude-usage/README.md](plugins/claude-usage/README.md)**.
+Shipped samples (opt-in):
+
+- Claude Code usage — [plugins/claude-usage/README.md](plugins/claude-usage/README.md)
+- Codex / ChatGPT usage — [plugins/codex-usage/README.md](plugins/codex-usage/README.md)
 
 ## Contributing
 

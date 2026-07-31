@@ -121,6 +121,7 @@ fetch_usage_json() {
 
 format_reset_time() {
   local iso="$1"
+  local with_date="${2:-}"
   local truncated epoch formatted
   if [[ "$iso" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}) ]]; then
     truncated="${BASH_REMATCH[1]}"
@@ -129,8 +130,13 @@ format_reset_time() {
   fi
   epoch="$(date -j -u -f "%Y-%m-%dT%H:%M:%S" "$truncated" "+%s" 2>/dev/null || true)"
   if [[ -n "$epoch" ]]; then
-    formatted="$(date -r "$epoch" "+%l:%M%p" 2>/dev/null || true)"
-    formatted="${formatted// /}"
+    if [[ -n "$with_date" ]]; then
+      formatted="$(date -r "$epoch" "+%b %d %l:%M%p" 2>/dev/null || true)"
+      formatted="$(printf '%s' "$formatted" | awk '{$1=$1; print}')"
+    else
+      formatted="$(date -r "$epoch" "+%l:%M%p" 2>/dev/null || true)"
+      formatted="${formatted// /}"
+    fi
     if [[ -n "$formatted" ]]; then
       printf 'resets %s' "$formatted"
       return
@@ -143,15 +149,18 @@ format_usage_line() {
   local label="$1"
   local json="$2"
   local field="$3"
-  local pct reset
+  local pct reset with_date=
   pct="$(printf '%s' "$json" | jq -r ".${field}.utilization // .${field}.used_percentage // empty")"
   reset="$(printf '%s' "$json" | jq -r ".${field}.resets_at // empty")"
   if [[ -z "$pct" || "$pct" == "null" ]]; then
     echo "${field} data unavailable" >&2
     exit 1
   fi
+  if [[ "$label" == "weekly" ]]; then
+    with_date=1
+  fi
   if [[ -n "$reset" && "$reset" != "null" ]]; then
-    printf '%s  %s%%  ·  %s\n' "$label" "$pct" "$(format_reset_time "$reset")"
+    printf '%s  %s%%  ·  %s\n' "$label" "$pct" "$(format_reset_time "$reset" "$with_date")"
   else
     printf '%s  %s%%\n' "$label" "$pct"
   fi
