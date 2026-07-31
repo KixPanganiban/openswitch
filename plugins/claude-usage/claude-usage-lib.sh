@@ -38,19 +38,22 @@ fetch_usage_json() {
 
 format_reset_time() {
   local iso="$1"
-  local truncated formatted
+  local truncated epoch formatted
   if [[ "$iso" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}) ]]; then
     truncated="${BASH_REMATCH[1]}"
   else
     truncated="${iso%%.*}"
   fi
-  formatted="$(date -j -f "%Y-%m-%dT%H:%M:%S" "$truncated" "+%l:%M%p" 2>/dev/null || true)"
-  formatted="${formatted// /}"
-  if [[ -n "$formatted" ]]; then
-    printf 'resets %s' "$formatted"
-  else
-    printf 'resets %s' "$iso"
+  epoch="$(date -j -u -f "%Y-%m-%dT%H:%M:%S" "$truncated" "+%s" 2>/dev/null || true)"
+  if [[ -n "$epoch" ]]; then
+    formatted="$(date -r "$epoch" "+%l:%M%p" 2>/dev/null || true)"
+    formatted="${formatted// /}"
+    if [[ -n "$formatted" ]]; then
+      printf 'resets %s' "$formatted"
+      return
+    fi
   fi
+  printf 'resets %s' "$iso"
 }
 
 format_usage_line() {
