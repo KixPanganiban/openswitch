@@ -51,7 +51,7 @@ Rows are labels only (no click actions).
    - `User-Agent: claude-code/2.1.72`
 4. It prints one line from `five_hour` / `seven_day` (`utilization`, or `used_percentage` if present) and `resets_at` (utc converted to local clock time).
 
-Both rows share one cached json under `~/.cache/openswitch/claude-usage/usage.json` (60s ttl, file lock). opening the submenu only hits the api once per minute even though both scripts run. if the api returns 429 (or any error) and a cache file still exists, the scripts reuse that stale cache instead of failing.
+Both rows share one cached json under `~/.cache/openswitch/claude-usage/usage.json` (60s ttl, file lock). opening the submenu only hits the api once per minute even though both scripts run. if the access token is expired, the plugin refreshes it via `platform.claude.com` and updates Keychain. transient errors (429/5xx) may reuse cache up to 5 minutes; auth failures never reuse stale percentages.
 
 Scripts set a Finder-safe `PATH` so Homebrew `jq` resolves when OpenSwitch was not started from a shell.
 
@@ -73,7 +73,8 @@ Scripts set a Finder-safe `PATH` so Homebrew `jq` resolves when OpenSwitch was n
 | `missing dependency: jq` | Install `jq`; confirm PATH in the script |
 | `Claude Code credentials not found` | Sign in with Claude Code on this Mac |
 | `oauth access token missing` | Keychain entry shape changed; inspect with Keychain Access / `security` |
-| `usage request failed (HTTP 429…)` | Anthropic rate-limited the usage endpoint; wait a minute and reopen, or keep an older cache under `~/.cache/openswitch/claude-usage/` |
-| `usage request failed` | Network, token expiry, or API error with no cache to fall back on |
+| `usage request failed (HTTP 429…)` | Anthropic rate-limited the usage endpoint; wait a minute and reopen (stale cache only reused up to 5 minutes) |
+| `oauth token expired` / `oauth refresh failed` / `HTTP 401` | Access token dead; plugin could not refresh — run `claude` and `/login`, then reopen |
+| `usage request failed` | Network or API error with no usable cache |
 
 General plugin rules: [docs/PLUGINS.md](../../docs/PLUGINS.md).
